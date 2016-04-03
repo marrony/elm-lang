@@ -31,13 +31,17 @@ port clicks =
   |> Debug.log "clicks"
   |> Signal.map (\t -> Signal.send actions.address Create)
 
-main : Signal Html
-main = Signal.map (view actions.address) model
---main =  Signal.map (\s -> Html.text s) orders
+port tick2 : Signal (Task a ())
+port tick2 =
+  Signal.map (\t -> Signal.send actions2.address Inc2) (every (2*second))
 
-myFoldp : (action -> state -> state) -> state -> Signal action -> Signal state
-myFoldp fn ini sig =
-  Signal.map2 (\a b -> fn a ini) sig
+main : Signal Html
+main =
+  let
+    s1 = Signal.map (view actions.address) model
+    s2 = Signal.map (view2 actions2.address) model2
+  in
+    Signal.map2 (\d1 d2 -> Html.div[] [d1, d2]) s1 s2
 
 model : Signal Model
 model =
@@ -73,4 +77,30 @@ view address model =
 actions : Signal.Mailbox Action
 actions =
   Signal.mailbox NoOp
+
+---------------------------------------------------
+type Action2
+  = NoOp2
+  | Inc2
+
+
+model2 : Signal Int
+model2 =
+  Signal.foldp update2 initialModel2 (Time.timestamp actions2.signal)
+
+initialModel2 : Int
+initialModel2 = 0
+
+update2 : (Float, Action2) -> Int -> Int
+update2 (ts, action) model =
+  case action of
+  NoOp2 -> model
+  Inc2 -> model + 1
+
+view2 : Address Action2 -> Int -> Html
+view2 address model = Html.div [] [ Html.text (toString model) ]
+
+actions2 : Signal.Mailbox Action2
+actions2 =
+  Signal.mailbox NoOp2
 
