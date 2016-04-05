@@ -1,5 +1,6 @@
 import Html exposing (..)
 import Html.Events exposing (..)
+import Html.Attributes as Attributes exposing (..)
 import Signal exposing (..)
 import String exposing (..)
 import StartApp.Simple exposing (start)
@@ -20,6 +21,7 @@ type State
 type Action
   = NoOp
   | Clear
+  | Negate
   | Percent
   | Operation (Float -> Float -> Float)
   | Equal
@@ -34,12 +36,31 @@ initModel = {
     state = Unary
   }
 
+addDigit : Model -> Char -> Model
+addDigit model digit =
+  if digit == '0' && (List.isEmpty model.stack) then
+    model
+  else if digit == '.' && (List.isEmpty model.stack) then
+    { model |
+      stack = model.stack ++ [ '0', '.' ],
+      state = Binary
+    }
+  else
+    { model |
+      stack = model.stack ++ [ digit ],
+      state = Binary
+    }
+  
 update : Action -> Model -> Model
 update action model =
   case action of
     NoOp -> model
 
     Clear -> initModel
+
+    Negate -> { model |
+      stack = String.toList <| toString <| -(displayValue model)
+    }
 
     Percent -> { model |
       stack = String.toList <| toString <| (model.register * (displayValue model) / 100.0)
@@ -56,10 +77,7 @@ update action model =
       Unary -> doUnary model
       Binary -> doBinary model
 
-    Digit digit -> { model |
-      stack = model.stack ++ [ digit ],
-      state = Binary
-    }
+    Digit digit -> addDigit model digit
 
 displayValue : Model -> Float
 displayValue model =
@@ -111,39 +129,89 @@ display model =
     else
       toString number
 
+headerStyle : String -> String -> List (String, String)
+headerStyle fgColor bgColor =
+  [ ("width", "35px")
+  , ("height", "35px")
+  , ("background-color", bgColor)
+  , ("color", fgColor)
+  , ("text-align", "center")
+  , ("padding", "5px")
+  , ("margin", "0px")
+  , ("border", "1px solid rgb(142, 142, 142)")
+  ]
+
+buttonStyle1 : Html.Attribute
+buttonStyle1 = Attributes.style (headerStyle "black" "rgb(224, 224, 224)")
+
+buttonStyle2 : Html.Attribute
+buttonStyle2 = Attributes.style (headerStyle "white" "rgb(245, 146, 62)")
+
+buttonStyle3 : Html.Attribute
+buttonStyle3 = Attributes.style (headerStyle "black" "rgb(214, 214, 214)")
+
+tableStyle : Html.Attribute
+tableStyle = Attributes.style
+  [ ("border-spacing", "0px")
+  , ("border-collapse", "collapse")
+  ]
+
+displayStyle : Html.Attribute
+displayStyle = Attributes.style
+  [ ("width", "100%")
+  ]
+
+displayInnerStyle : Html.Attribute
+displayInnerStyle = Attributes.style
+  [ ("background-color", "rgb(76, 76, 76)")
+  , ("padding", "10px")
+  , ("font-size", "xx-large")
+  , ("text-align", "right")
+  , ("color", "white")
+  , ("display", "block")
+  ]
+
+calculatorStyle : Html.Attribute
+calculatorStyle = Attributes.style
+  [ ("display", "inline-block") ]
+
 view : Signal.Address Action -> Model -> Html
 view address model =
-  Html.div [] [
-    Html.div [] [ Html.text (display model) ],
-    Html.div [] [
-      Html.button [ onClick address Clear ] [ Html.text "C" ],
-      Html.button [] [ Html.text "+/-" ],
-      Html.button [ onClick address Percent ] [ Html.text "%" ],
-      Html.button [ onClick address (Operation (/)) ] [ Html.text "/" ]
+  Html.div [ calculatorStyle ] [
+    Html.div [ displayStyle ] [
+      Html.div [ displayInnerStyle ] [ Html.text (display model) ]
     ],
-    Html.div [] [
-      Html.button [ onClick address (Digit '7') ] [ Html.text "7" ],
-      Html.button [ onClick address (Digit '8') ] [ Html.text "8" ],
-      Html.button [ onClick address (Digit '9') ] [ Html.text "9" ],
-      Html.button [ onClick address (Operation (*)) ] [ Html.text "X" ]
-    ],
-    Html.div [] [
-      Html.button [ onClick address (Digit '4') ] [ Html.text "4" ],
-      Html.button [ onClick address (Digit '5') ] [ Html.text "5" ],
-      Html.button [ onClick address (Digit '6') ] [ Html.text "6" ],
-      Html.button [ onClick address (Operation (-)) ] [ Html.text "-" ]
-    ],
-    Html.div [] [
-      Html.button [ onClick address (Digit '1') ] [ Html.text "1" ],
-      Html.button [ onClick address (Digit '2') ] [ Html.text "2" ],
-      Html.button [ onClick address (Digit '3') ] [ Html.text "3" ],
-      Html.button [ onClick address (Operation (+)) ] [ Html.text "+" ]
-    ],
-    Html.div [] [
-      Html.button [ onClick address (Digit '0') ] [ Html.text "0" ],
-      Html.button [ onClick address (Digit '0') ] [ Html.text "0" ],
-      Html.button [ onClick address (Digit '.') ] [ Html.text "." ],
-      Html.button [ onClick address Equal ] [ Html.text "=" ]
+    Html.table [ tableStyle ] [
+      Html.tr [] [
+        Html.td [ buttonStyle3, onClick address Clear ] [ Html.text "AC" ],
+        Html.td [ buttonStyle3, onClick address Negate ] [ Html.text "+/-" ],
+        Html.td [ buttonStyle3, onClick address Percent ] [ Html.text "%" ],
+        Html.td [ buttonStyle2, onClick address (Operation (/)) ] [ Html.text "/" ]
+      ],
+      Html.tr [] [
+        Html.td [ buttonStyle1, onClick address (Digit '7') ] [ Html.text "7" ],
+        Html.td [ buttonStyle1, onClick address (Digit '8') ] [ Html.text "8" ],
+        Html.td [ buttonStyle1, onClick address (Digit '9') ] [ Html.text "9" ],
+        Html.td [ buttonStyle2, onClick address (Operation (*)) ] [ Html.text "x" ]
+      ],
+      Html.tr [] [
+        Html.td [ buttonStyle1, onClick address (Digit '4') ] [ Html.text "4" ],
+        Html.td [ buttonStyle1, onClick address (Digit '5') ] [ Html.text "5" ],
+        Html.td [ buttonStyle1, onClick address (Digit '6') ] [ Html.text "6" ],
+        Html.td [ buttonStyle2, onClick address (Operation (-)) ] [ Html.text "-" ]
+      ],
+      Html.tr [] [
+        Html.td [ buttonStyle1, onClick address (Digit '1') ] [ Html.text "1" ],
+        Html.td [ buttonStyle1, onClick address (Digit '2') ] [ Html.text "2" ],
+        Html.td [ buttonStyle1, onClick address (Digit '3') ] [ Html.text "3" ],
+        Html.td [ buttonStyle2, onClick address (Operation (+)) ] [ Html.text "+" ]
+      ],
+      Html.tr [] [
+        Html.td [ buttonStyle1, onClick address (Digit '0') ] [ Html.text "0" ],
+        Html.td [ buttonStyle1, onClick address (Digit '0') ] [ Html.text "0" ],
+        Html.td [ buttonStyle1, onClick address (Digit '.') ] [ Html.text "." ],
+        Html.td [ buttonStyle2, onClick address Equal ] [ Html.text "=" ]
+      ]
     ],
     Html.div [] [ Html.text ("state " ++ (toString model.state)) ],
     Html.div [] [ Html.text ("answer " ++ toString model.answer) ],
@@ -153,7 +221,7 @@ view address model =
 
 main : Signal Html
 main =
-  start {
+  StartApp.Simple.start {
     model = initModel,
     update = update,
     view = view
